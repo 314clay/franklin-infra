@@ -1,0 +1,9 @@
+project:
+  name: my-project
+  port: "3099"
+  db_name: my_database
+  health_endpoint: /api/state
+  health_url: https://myproject.claypersonalprojects.cc/api/state
+  test_command: python test_app.py
+  deploy_path: ~/my-project
+  runtime: python  # python | node

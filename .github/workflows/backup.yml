@@ -1,0 +1,79 @@
+name: Database Backup
+
+on:
+  workflow_call:
+    inputs:
+      db_name:
+        required: true
+        type: string
+      project_name:
+        required: true
+        type: string
+    secrets:
+      TS_OAUTH_CLIENT_ID:
+        required: true
+      TS_OAUTH_SECRET:
+        required: true
+      FRANKLIN_SSH_KEY:
+        required: true
+      NTFY_TOPIC:
+        required: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Connect Tailscale
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+
+          TOKEN=$(curl -sf -X POST "https://api.tailscale.com/api/v2/oauth/token" \
+            -d "client_id=${TS_OAUTH_CLIENT_ID}" \
+            -d "client_secret=${TS_OAUTH_SECRET}" \
+            -d "grant_type=client_credentials" | jq -r .access_token)
+
+          AUTHKEY=$(curl -sf -X POST "https://api.tailscale.com/api/v2/tailnet/-/keys" \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"capabilities":{"devices":{"create":{"reusable":false,"ephemeral":true,"preauthorized":true,"tags":["tag:ci"]}}}}' | jq -r .key)
+
+          sudo tailscale up --authkey="${AUTHKEY}" --hostname=github-ci-backup --accept-routes
+          ping -c 2 100.112.120.2
+
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.FRANKLIN_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H 100.112.120.2 >> ~/.ssh/known_hosts
+
+      - name: Run backup
+        run: |
+          ssh clayarnold@100.112.120.2 bash -s << 'SCRIPT'
+            set -e
+            BACKUP_DIR=~/backups/${{ inputs.db_name }}
+            mkdir -p "$BACKUP_DIR"
+            FILENAME="${{ inputs.db_name }}_$(date +%Y%m%d_%H%M%S).sql.gz"
+            pg_dump -h 127.0.0.1 -p 5433 -U postgres ${{ inputs.db_name }} | gzip > "$BACKUP_DIR/$FILENAME"
+            echo "Backup created: $FILENAME ($(du -h "$BACKUP_DIR/$FILENAME" | cut -f1))"
+
+            # Prune backups older than 7 days
+            find "$BACKUP_DIR" -name "*.sql.gz" -mtime +7 -delete
+            echo "Remaining backups:"
+            ls -lh "$BACKUP_DIR"
+          SCRIPT
+
+      - name: Notify
+        if: always()
+        run: |
+          TOPIC="${{ secrets.NTFY_TOPIC }}"
+          if [ -n "$TOPIC" ]; then
+            STATUS=${{ job.status }}
+            curl -sf -d "${{ inputs.project_name }} backup: ${STATUS}" "https://ntfy.sh/${TOPIC}" || true
+          fi

@@ -1,0 +1,50 @@
+name: OAuth Canary
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"  # Every Monday at 9am UTC
+  workflow_dispatch:
+
+jobs:
+  test-oauth:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Test Tailscale OAuth token exchange
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+        run: |
+          TOKEN=$(curl -sf -X POST "https://api.tailscale.com/api/v2/oauth/token" \
+            -d "client_id=${TS_OAUTH_CLIENT_ID}" \
+            -d "client_secret=${TS_OAUTH_SECRET}" \
+            -d "grant_type=client_credentials" | jq -r .access_token)
+
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "ERROR: OAuth token exchange failed"
+            exit 1
+          fi
+
+          echo "OAuth token exchange successful"
+
+          AUTHKEY=$(curl -sf -X POST "https://api.tailscale.com/api/v2/tailnet/-/keys" \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"capabilities":{"devices":{"create":{"reusable":false,"ephemeral":true,"preauthorized":true,"tags":["tag:ci"]}}}}' | jq -r .key)
+
+          if [ -z "$AUTHKEY" ] || [ "$AUTHKEY" = "null" ]; then
+            echo "ERROR: Authkey creation failed"
+            exit 1
+          fi
+
+          echo "Authkey creation successful — OAuth pipeline is healthy"
+
+      - name: Alert on failure
+        if: failure()
+        run: |
+          TOPIC="${{ secrets.NTFY_TOPIC }}"
+          if [ -n "$TOPIC" ]; then
+            curl -sf -d "⚠️ Tailscale OAuth canary FAILED — CI deploys may be broken" \
+              -H "Priority: high" \
+              "https://ntfy.sh/${TOPIC}" || true
+          fi

@@ -1,0 +1,206 @@
+name: CI/CD
+
+on:
+  workflow_call:
+    inputs:
+      project_name:
+        required: true
+        type: string
+      db_name:
+        required: true
+        type: string
+      port:
+        required: true
+        type: string
+      health_endpoint:
+        required: true
+        type: string
+      health_url:
+        required: true
+        type: string
+      test_command:
+        required: true
+        type: string
+      deploy_path:
+        required: true
+        type: string
+      runtime:
+        required: true
+        type: string
+        description: "python or node"
+      python_version:
+        required: false
+        type: string
+        default: "3.12"
+      node_version:
+        required: false
+        type: string
+        default: "20"
+      install_playwright:
+        required: false
+        type: boolean
+        default: false
+      schema_file:
+        required: false
+        type: string
+        default: ""
+        description: "Path to schema.sql for CI DB init (empty = use migrations)"
+    secrets:
+      TS_OAUTH_CLIENT_ID:
+        required: true
+      TS_OAUTH_SECRET:
+        required: true
+      FRANKLIN_SSH_KEY:
+        required: true
+      NTFY_TOPIC:
+        required: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ${{ inputs.db_name }}
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/${{ inputs.db_name }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        if: inputs.runtime == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Setup Node
+        if: inputs.runtime == 'node'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+
+      - name: Install Python dependencies
+        if: inputs.runtime == 'python'
+        run: pip install -r requirements.txt
+
+      - name: Install Node dependencies
+        if: inputs.runtime == 'node'
+        run: npm ci
+
+      - name: Install Playwright
+        if: inputs.install_playwright
+        run: |
+          pip install playwright
+          playwright install chromium --with-deps
+
+      - name: Initialize database (schema.sql)
+        if: inputs.schema_file != ''
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d ${{ inputs.db_name }} -f ${{ inputs.schema_file }}
+
+      - name: Initialize database (migrations)
+        if: inputs.schema_file == ''
+        run: |
+          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xz
+          chmod +x migrate
+          ./migrate -path migrations -database "postgresql://postgres:postgres@localhost:5432/${{ inputs.db_name }}?sslmode=disable" up
+
+      - name: Start server
+        run: |
+          if [ "${{ inputs.runtime }}" = "python" ]; then
+            uvicorn server:app --host 0.0.0.0 --port ${{ inputs.port }} &
+          else
+            npm start &
+          fi
+          for i in 1 2 3 4 5; do
+            sleep 2
+            curl -sf http://localhost:${{ inputs.port }}${{ inputs.health_endpoint }} > /dev/null && echo "Server ready" && exit 0
+            echo "Waiting for server (attempt $i)..."
+          done
+          echo "Server failed to start" && exit 1
+
+      - name: Run tests
+        run: ${{ inputs.test_command }}
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Connect Tailscale
+        env:
+          TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+
+          TOKEN=$(curl -sf -X POST "https://api.tailscale.com/api/v2/oauth/token" \
+            -d "client_id=${TS_OAUTH_CLIENT_ID}" \
+            -d "client_secret=${TS_OAUTH_SECRET}" \
+            -d "grant_type=client_credentials" | jq -r .access_token)
+
+          AUTHKEY=$(curl -sf -X POST "https://api.tailscale.com/api/v2/tailnet/-/keys" \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"capabilities":{"devices":{"create":{"reusable":false,"ephemeral":true,"preauthorized":true,"tags":["tag:ci"]}}}}' | jq -r .key)
+
+          sudo tailscale up --authkey="${AUTHKEY}" --hostname=github-ci-runner --accept-routes
+          tailscale status
+          ping -c 2 100.112.120.2
+
+      - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.FRANKLIN_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H 100.112.120.2 >> ~/.ssh/known_hosts
+
+      - name: Run migrations on Franklin
+        run: |
+          if [ -d "migrations" ]; then
+            scp -r migrations/ clayarnold@100.112.120.2:${{ inputs.deploy_path }}/migrations/
+            ssh clayarnold@100.112.120.2 "cd ${{ inputs.deploy_path }} && migrate -path migrations -database 'postgresql://postgres@127.0.0.1:5433/${{ inputs.db_name }}?sslmode=disable' up"
+          fi
+
+      - name: Deploy to Franklin
+        run: |
+          ssh -o ConnectTimeout=30 clayarnold@100.112.120.2 "cd ${{ inputs.deploy_path }} && git pull origin main && docker compose up -d --build"
+
+      - name: Health check
+        run: |
+          sleep 10
+          curl -sf --max-time 15 ${{ inputs.health_url }} > /dev/null \
+            && echo "Deploy OK — site is healthy" \
+            || (echo "DEPLOY FAILED — site unreachable" && exit 1)
+
+      - name: Tag deploy
+        run: |
+          TAG="deploy-$(date +%Y%m%d-%H%M%S)"
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Notify
+        if: always()
+        run: |
+          TOPIC="${{ secrets.NTFY_TOPIC }}"
+          if [ -n "$TOPIC" ]; then
+            STATUS=${{ job.status }}
+            curl -sf -d "${{ inputs.project_name }} deploy: ${STATUS}" "https://ntfy.sh/${TOPIC}" || true
+          fi
