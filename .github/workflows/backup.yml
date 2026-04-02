@@ -41,7 +41,14 @@ jobs:
             -H "Content-Type: application/json" \
             -d '{"capabilities":{"devices":{"create":{"reusable":false,"ephemeral":true,"preauthorized":true,"tags":["tag:ci"]}}}}' | jq -r .key)
 
-          sudo tailscale up --authkey="${AUTHKEY}" --hostname=github-ci-backup --accept-routes
+          HOSTNAME="ci-backup-${GITHUB_RUN_ID}"
+          sudo tailscale up --authkey="${AUTHKEY}" --hostname="${HOSTNAME}" --accept-routes
+
+          for i in 1 2 3 4 5; do
+            ping -c 1 -W 3 100.112.120.2 && break
+            echo "Waiting for Tailscale route (attempt $i)..."
+            sleep 3
+          done
           ping -c 2 100.112.120.2
 
       - name: Setup SSH
