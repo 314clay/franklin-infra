@@ -21,7 +21,8 @@ migrate:
 	migrate -path migrations -database "postgresql://postgres@127.0.0.1:5433/$(DB_NAME)?sslmode=disable" up
 
 migrate-franklin:
-	scp -r migrations/ $(FRANKLIN):$(DEPLOY_PATH)/migrations/
+	ssh $(FRANKLIN) "mkdir -p $(DEPLOY_PATH)/migrations"
+	scp migrations/* $(FRANKLIN):$(DEPLOY_PATH)/migrations/
 	ssh $(FRANKLIN) "cd $(DEPLOY_PATH) && migrate -path migrations -database 'postgresql://postgres@127.0.0.1:5433/$(DB_NAME)?sslmode=disable' up"
 
 migrate-create:

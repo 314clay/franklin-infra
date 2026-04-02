@@ -174,17 +174,19 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H 100.112.120.2 >> ~/.ssh/known_hosts
 
+      - name: Deploy to Franklin
+        run: |
+          ssh -o ConnectTimeout=30 clayarnold@100.112.120.2 "cd ${{ inputs.deploy_path }} && git pull origin main"
+
       - name: Run migrations on Franklin
         run: |
           if [ -d "migrations" ]; then
-            ssh clayarnold@100.112.120.2 "mkdir -p ${{ inputs.deploy_path }}/migrations"
-            scp migrations/* clayarnold@100.112.120.2:${{ inputs.deploy_path }}/migrations/
             ssh clayarnold@100.112.120.2 "cd ${{ inputs.deploy_path }} && migrate -path migrations -database 'postgresql://postgres@127.0.0.1:5433/${{ inputs.db_name }}?sslmode=disable' up"
           fi
 
-      - name: Deploy to Franklin
+      - name: Rebuild containers
         run: |
-          ssh -o ConnectTimeout=30 clayarnold@100.112.120.2 "cd ${{ inputs.deploy_path }} && git pull origin main && docker compose up -d --build"
+          ssh clayarnold@100.112.120.2 "cd ${{ inputs.deploy_path }} && docker compose up -d --build"
 
       - name: Health check
         run: |
