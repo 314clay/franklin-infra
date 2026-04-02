@@ -177,7 +177,8 @@ jobs:
       - name: Run migrations on Franklin
         run: |
           if [ -d "migrations" ]; then
-            scp -r migrations/ clayarnold@100.112.120.2:${{ inputs.deploy_path }}/migrations/
+            ssh clayarnold@100.112.120.2 "mkdir -p ${{ inputs.deploy_path }}/migrations"
+            scp migrations/* clayarnold@100.112.120.2:${{ inputs.deploy_path }}/migrations/
             ssh clayarnold@100.112.120.2 "cd ${{ inputs.deploy_path }} && migrate -path migrations -database 'postgresql://postgres@127.0.0.1:5433/${{ inputs.db_name }}?sslmode=disable' up"
           fi
 
