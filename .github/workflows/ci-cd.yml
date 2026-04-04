@@ -45,6 +45,21 @@ on:
         type: string
         default: ""
         description: "Path to schema.sql for CI DB init (empty = use migrations)"
+      franklin_host:
+        required: false
+        type: string
+        default: "100.112.120.2"
+        description: "Tailscale IP of the deploy target"
+      franklin_user:
+        required: false
+        type: string
+        default: "clayarnold"
+        description: "SSH user on the deploy target"
+      health_timeout:
+        required: false
+        type: number
+        default: 15
+        description: "Timeout in seconds for the health check curl"
     secrets:
       TS_OAUTH_CLIENT_ID:
         required: true
@@ -167,11 +182,11 @@ jobs:
 
           # Wait for Tailscale routing to stabilize
           for i in 1 2 3 4 5; do
-            ping -c 1 -W 3 100.112.120.2 && break
+            ping -c 1 -W 3 ${{ inputs.franklin_host }} && break
             echo "Waiting for Tailscale route (attempt $i)..."
             sleep 3
           done
-          ping -c 2 100.112.120.2
+          ping -c 2 ${{ inputs.franklin_host }}
 
       - name: Setup SSH
         env:
@@ -180,26 +195,34 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H 100.112.120.2 >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ inputs.franklin_host }} >> ~/.ssh/known_hosts
 
       - name: Deploy to Franklin
         run: |
-          ssh -o ConnectTimeout=30 clayarnold@100.112.120.2 "cd ${{ inputs.deploy_path }} && git pull origin main"
+          ssh -o ConnectTimeout=30 ${{ inputs.franklin_user }}@${{ inputs.franklin_host }} "cd ${{ inputs.deploy_path }} && git pull origin main"
+
+      - name: Verify database exists on Franklin
+        run: |
+          if [ -d "migrations" ]; then
+            ssh ${{ inputs.franklin_user }}@${{ inputs.franklin_host }} "psql -h 127.0.0.1 -p 5433 -U postgres -lqt | cut -d'|' -f1 | grep -qw '${{ inputs.db_name }}'" \
+              || (echo "ERROR: Database '${{ inputs.db_name }}' does not exist on Franklin (port 5433). Create it before deploying." && exit 1)
+            echo "Database '${{ inputs.db_name }}' exists on Franklin."
+          fi
 
       - name: Run migrations on Franklin
         run: |
           if [ -d "migrations" ]; then
-            ssh clayarnold@100.112.120.2 "cd ${{ inputs.deploy_path }} && migrate -path migrations -database 'postgresql://postgres@127.0.0.1:5433/${{ inputs.db_name }}?sslmode=disable' up"
+            ssh ${{ inputs.franklin_user }}@${{ inputs.franklin_host }} "cd ${{ inputs.deploy_path }} && migrate -path migrations -database 'postgresql://postgres@127.0.0.1:5433/${{ inputs.db_name }}?sslmode=disable' up"
           fi
 
       - name: Rebuild containers
         run: |
-          ssh clayarnold@100.112.120.2 "cd ${{ inputs.deploy_path }} && docker compose up -d --build"
+          ssh ${{ inputs.franklin_user }}@${{ inputs.franklin_host }} "cd ${{ inputs.deploy_path }} && docker compose up -d --build"
 
       - name: Health check
         run: |
           sleep 10
-          curl -sf --max-time 15 ${{ inputs.health_url }} > /dev/null \
+          curl -sf --max-time ${{ inputs.health_timeout }} ${{ inputs.health_url }} > /dev/null \
             && echo "Deploy OK — site is healthy" \
             || (echo "DEPLOY FAILED — site unreachable" && exit 1)
 

@@ -9,6 +9,16 @@ on:
       project_name:
         required: true
         type: string
+      franklin_host:
+        required: false
+        type: string
+        default: "100.112.120.2"
+        description: "Tailscale IP of the deploy target"
+      franklin_user:
+        required: false
+        type: string
+        default: "clayarnold"
+        description: "SSH user on the deploy target"
     secrets:
       TS_OAUTH_CLIENT_ID:
         required: true
@@ -45,11 +55,11 @@ jobs:
           sudo tailscale up --authkey="${AUTHKEY}" --hostname="${HOSTNAME}" --accept-routes
 
           for i in 1 2 3 4 5; do
-            ping -c 1 -W 3 100.112.120.2 && break
+            ping -c 1 -W 3 ${{ inputs.franklin_host }} && break
             echo "Waiting for Tailscale route (attempt $i)..."
             sleep 3
           done
-          ping -c 2 100.112.120.2
+          ping -c 2 ${{ inputs.franklin_host }}
 
       - name: Setup SSH
         env:
@@ -58,11 +68,11 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H 100.112.120.2 >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ inputs.franklin_host }} >> ~/.ssh/known_hosts
 
       - name: Run backup
         run: |
-          ssh clayarnold@100.112.120.2 bash -s << 'SCRIPT'
+          ssh ${{ inputs.franklin_user }}@${{ inputs.franklin_host }} bash -s << 'SCRIPT'
             set -e
             BACKUP_DIR=~/backups/${{ inputs.db_name }}
             mkdir -p "$BACKUP_DIR"

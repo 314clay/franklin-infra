@@ -1,0 +1,9 @@
+# Auto-generated from ports.txt — do not edit by hand
+# Regenerate: ./scripts/gen-caddyfile.sh
+{
+	auto_https off
+}
+
+questionnaire.f {
+	reverse_proxy localhost:3099
+}

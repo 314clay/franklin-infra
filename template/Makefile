@@ -4,9 +4,10 @@ DB_NAME := $(shell yq '.project.db_name' $(INFRA))
 PORT := $(shell yq '.project.port' $(INFRA))
 DEPLOY_PATH := $(shell yq '.project.deploy_path' $(INFRA))
 HEALTH_URL := $(shell yq '.project.health_url' $(INFRA))
+INFRA_REPO := $(HOME)/p/franklin-infra
 FRANKLIN := clayarnold@100.112.120.2
 
-.PHONY: deploy rollback migrate migrate-franklin migrate-create logs backup restore status health
+.PHONY: deploy rollback migrate migrate-franklin migrate-create logs backup restore status health deploy-branch teardown-branch
 
 deploy:
 	ssh $(FRANKLIN) "cd $(DEPLOY_PATH) && git pull origin main && docker compose up -d --build"
@@ -15,6 +16,10 @@ rollback:
 	@echo "Available deploy tags:"
 	@git tag -l 'deploy-*' --sort=-creatordate | head -10
 	@read -p "Tag to rollback to: " TAG && \
+	if [ -z "$$(git tag -l "$$TAG")" ]; then \
+		echo "Error: tag '$$TAG' does not exist."; \
+		exit 1; \
+	fi && \
 	ssh $(FRANKLIN) "cd $(DEPLOY_PATH) && git fetch --tags && git checkout $$TAG && docker compose up -d --build"
 
 migrate:
@@ -49,3 +54,11 @@ health:
 	@curl -sf --max-time 10 $(HEALTH_URL) > /dev/null \
 		&& echo "✓ $(PROJECT) is healthy" \
 		|| echo "✗ $(PROJECT) is unreachable"
+
+deploy-branch:
+	@test -n "$(BRANCH)" || (echo "Usage: make deploy-branch BRANCH=staging" && exit 1)
+	$(INFRA_REPO)/scripts/branch-deploy.sh deploy . $(BRANCH)
+
+teardown-branch:
+	@test -n "$(BRANCH)" || (echo "Usage: make teardown-branch BRANCH=staging" && exit 1)
+	$(INFRA_REPO)/scripts/branch-deploy.sh teardown . $(BRANCH)
