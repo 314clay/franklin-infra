@@ -3,6 +3,9 @@ set -euo pipefail
 
 # Generate Caddyfile from ports.txt
 # Usage: ./scripts/gen-caddyfile.sh
+#
+# All *.f sites use tls internal (Caddy's built-in CA).
+# Devices need the root CA installed once — see infra/franklin-ca.mobileconfig
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PORTS_FILE="$SCRIPT_DIR/../infra/ports.txt"
@@ -12,10 +15,8 @@ cat > "$CADDYFILE" << 'EOF'
 # Auto-generated from ports.txt — do not edit by hand
 # Regenerate: ./scripts/gen-caddyfile.sh
 
-# Serve the internal CA cert so any Tailnet device can install it
-# Visit http://cert.f to download — one-time setup per device
+# Serve the CA cert profile for easy device setup (over HTTP so it's accessible before trust)
 http://cert.f {
-	rewrite * /root.crt
 	root * /data/caddy/pki/authorities/local
 	file_server
 }

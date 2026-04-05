@@ -1,10 +1,8 @@
 # Auto-generated from ports.txt — do not edit by hand
 # Regenerate: ./scripts/gen-caddyfile.sh
 
-# Serve the internal CA cert so any Tailnet device can install it
-# Visit http://cert.f to download — one-time setup per device
+# Serve the CA cert profile for easy device setup (over HTTP so it's accessible before trust)
 http://cert.f {
-	rewrite * /root.crt
 	root * /data/caddy/pki/authorities/local
 	file_server
 }
