@@ -4,10 +4,14 @@
 	auto_https off
 }
 
-cat-tracker.f {
+http://cat-tracker.f {
 	reverse_proxy localhost:3099
 }
 
-questionnaire.f {
+http://questionnaire.f {
 	reverse_proxy localhost:3050
+}
+
+http://whisper-transcriber.f {
+	reverse_proxy localhost:3100
 }

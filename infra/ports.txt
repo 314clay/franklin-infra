@@ -4,3 +4,4 @@
 # Port range: 3000-3999
 cat-tracker 3099
 questionnaire 3050
+whisper-transcriber 3100
