@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadCertificateFileName</key>
+			<string>franklin-local-ca.crt</string>
+			<key>PayloadContent</key>
+			<data>LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJqakNDQVRPZ0F3SUJBZ0lVZXlHZlZGTGlGcWcxYVhlNEtHMVBPOGQ0LzJJd0NnWUlLb1pJemowRUF3SXcKSERFYU1CZ0dBMVVFQXd3UlJuSmhibXRzYVc0Z1RHOWpZV3dnUTBFd0hoY05Nall3TkRBMU1EY3dORFV3V2hjTgpNell3TkRBeU1EY3dORFV3V2pBY01Sb3dHQVlEVlFRRERCRkdjbUZ1YTJ4cGJpQk1iMk5oYkNCRFFUQlpNQk1HCkJ5cUdTTTQ5QWdFR0NDcUdTTTQ5QXdFSEEwSUFCR2VSeEF5NUdnOTFGdk1VN0JTcmsxUkVWQWE2N3JlcVRCSXIKZ1FKTFVlNFhpZXNJNWpnbE1CbSs4akxJMXpCRk5wdTlzbHRBRjlmOGJtRVV4U2pjMm5XalV6QlJNQjBHQTFVZApEZ1FXQkJUd3phMDZDQnpORkVWYkFubW1HeXZvK3RGbzF6QWZCZ05WSFNNRUdEQVdnQlR3emEwNkNCek5GRVZiCkFubW1HeXZvK3RGbzF6QVBCZ05WSFJNQkFmOEVCVEFEQVFIL01Bb0dDQ3FHU000OUJBTUNBMGtBTUVZQ0lRRGoKMVJqT1VwSDZqWFgwVXZvMDFhSlBlazJjOG5XbkVqWG05RUV1UEthdVdRSWhBTWVpbEI1NkIwMHRFTGNUQU5hUAp4NHlRRi9kcVFDRmY1LytjalBWekNkdEEKLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=</data>
+			<key>PayloadDescription</key>
+			<string>Trusts Franklin's internal CA for all *.f services on the Tailnet</string>
+			<key>PayloadDisplayName</key>
+			<string>Franklin Local CA</string>
+			<key>PayloadIdentifier</key>
+			<string>com.clay.franklin.ca</string>
+			<key>PayloadType</key>
+			<string>com.apple.security.root</string>
+			<key>PayloadUUID</key>
+			<string>723F0ABF-132D-4A8F-A841-1860AD349A06</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Installs Franklin's internal CA so all *.f Tailnet services are trusted over HTTPS.</string>
+	<key>PayloadDisplayName</key>
+	<string>Franklin Tailnet CA</string>
+	<key>PayloadIdentifier</key>
+	<string>com.clay.franklin.profile</string>
+	<key>PayloadOrganization</key>
+	<string>Clay's Tailnet</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>7BDB7343-2C9B-4C6A-B60A-C33DCA2640AD</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
