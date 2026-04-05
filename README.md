@@ -16,7 +16,7 @@ Reusable CI/CD infrastructure for projects deployed to Franklin (home server) vi
 
 ```bash
 # 1. Clone this repo
-git clone git@github.com:ericcarnold/franklin-infra.git
+git clone git@github.com:314clay/franklin-infra.git
 
 # 2. Install dependencies (macOS + Franklin)
 ./scripts/install-deps.sh

@@ -1,28 +1,5 @@
-# Auto-generated from ports.txt — do not edit by hand
-# Regenerate: ./scripts/gen-caddyfile.sh
-
-# Serve the CA cert profile for easy device setup (over HTTP so it's accessible before trust)
-http://cert.f {
-	root * /data/caddy/pki/authorities/local
-	file_server
-}
-
-cat-tracker.f {
-	tls internal
-	reverse_proxy localhost:3099
-}
-
+# Minimal test — one site, tls internal
 questionnaire.f {
 	tls internal
-	reverse_proxy localhost:3050
-}
-
-whisper-transcriber.f {
-	tls internal
-	reverse_proxy localhost:3100
-}
-
-whisper-gpu.f {
-	tls internal
-	reverse_proxy 100.127.103.23:30800
+	respond "hello from questionnaire"
 }
