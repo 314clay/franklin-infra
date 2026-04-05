@@ -1,17 +1,30 @@
 # Auto-generated from ports.txt — do not edit by hand
 # Regenerate: ./scripts/gen-caddyfile.sh
-{
-	auto_https off
+
+# Serve the internal CA cert so any Tailnet device can install it
+# Visit http://cert.f to download — one-time setup per device
+http://cert.f {
+	rewrite * /root.crt
+	root * /data/caddy/pki/authorities/local
+	file_server
 }
 
-http://cat-tracker.f {
+cat-tracker.f {
+	tls internal
 	reverse_proxy localhost:3099
 }
 
-http://questionnaire.f {
+questionnaire.f {
+	tls internal
 	reverse_proxy localhost:3050
 }
 
-http://whisper-transcriber.f {
+whisper-transcriber.f {
+	tls internal
 	reverse_proxy localhost:3100
+}
+
+whisper-gpu.f {
+	tls internal
+	reverse_proxy 100.127.103.23:30800
 }

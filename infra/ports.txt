@@ -5,3 +5,4 @@
 cat-tracker 3099
 questionnaire 3050
 whisper-transcriber 3100
+whisper-gpu 30800 100.127.103.23

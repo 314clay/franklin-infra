@@ -1,16 +1,4 @@
 services:
-  dnsmasq:
-    image: jpillora/dnsmasq:latest
-    container_name: dnsmasq
-    restart: unless-stopped
-    ports:
-      - "53:53/udp"
-      - "53:53/tcp"
-    volumes:
-      - ./dnsmasq.conf:/etc/dnsmasq.conf:ro
-    cap_add:
-      - NET_ADMIN
-
   caddy:
     image: caddy:2-alpine
     container_name: caddy

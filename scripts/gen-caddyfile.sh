@@ -11,16 +11,23 @@ CADDYFILE="$SCRIPT_DIR/../infra/Caddyfile"
 cat > "$CADDYFILE" << 'EOF'
 # Auto-generated from ports.txt — do not edit by hand
 # Regenerate: ./scripts/gen-caddyfile.sh
-{
-	auto_https off
+
+# Serve the internal CA cert so any Tailnet device can install it
+# Visit http://cert.f to download — one-time setup per device
+http://cert.f {
+	rewrite * /root.crt
+	root * /data/caddy/pki/authorities/local
+	file_server
 }
 EOF
 
-grep -v '^#' "$PORTS_FILE" | grep -v '^$' | while read -r name port; do
+grep -v '^#' "$PORTS_FILE" | grep -v '^$' | while read -r name port host; do
+  host=${host:-localhost}
   cat >> "$CADDYFILE" << EOF
 
 ${name}.f {
-	reverse_proxy localhost:${port}
+	tls internal
+	reverse_proxy ${host}:${port}
 }
 EOF
 done
