@@ -20,8 +20,8 @@ PORTS_FILE="$INFRA_DIR/ports.txt"
 echo "Onboarding: $PROJECT_DIR"
 
 # Copy template files
-cp "$TEMPLATE_DIR/.infra.yml" "$PROJECT_DIR/.infra.yml"
-cp "$TEMPLATE_DIR/Makefile" "$PROJECT_DIR/Makefile"
+[ ! -f "$PROJECT_DIR/.infra.yml" ] && cp "$TEMPLATE_DIR/.infra.yml" "$PROJECT_DIR/.infra.yml"
+[ ! -f "$PROJECT_DIR/Makefile" ] && cp "$TEMPLATE_DIR/Makefile" "$PROJECT_DIR/Makefile"
 mkdir -p "$PROJECT_DIR/.github/workflows"
 cp "$TEMPLATE_DIR/.github/workflows/ci-cd.yml" "$PROJECT_DIR/.github/workflows/ci-cd.yml"
 cp "$TEMPLATE_DIR/.github/workflows/backup.yml" "$PROJECT_DIR/.github/workflows/backup.yml"
