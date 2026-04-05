@@ -4,6 +4,10 @@
 	auto_https off
 }
 
-questionnaire.f {
+cat-tracker.f {
 	reverse_proxy localhost:3099
+}
+
+questionnaire.f {
+	reverse_proxy localhost:3050
 }
