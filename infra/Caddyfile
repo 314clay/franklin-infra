@@ -34,3 +34,8 @@ glive-bridge.f {
 	tls internal
 	reverse_proxy localhost:30801
 }
+
+output.f {
+	tls internal
+	reverse_proxy localhost:3051
+}
