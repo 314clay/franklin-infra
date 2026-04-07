@@ -220,7 +220,7 @@ jobs:
 
       - name: Deploy to Franklin
         run: |
-          ssh -o ConnectTimeout=30 ${{ inputs.franklin_user }}@${{ inputs.franklin_host }} "cd ${{ inputs.deploy_path }} && git pull origin ${{ inputs.default_branch }}"
+          ssh -o ConnectTimeout=30 ${{ inputs.franklin_user }}@${{ inputs.franklin_host }} "cd ${{ inputs.deploy_path }} && git stash --include-untracked 2>/dev/null; git pull origin ${{ inputs.default_branch }}"
 
       - name: Verify database exists on Franklin
         run: |
