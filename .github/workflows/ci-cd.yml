@@ -75,6 +75,11 @@ on:
         type: string
         default: ""
         description: "Command to run on Franklin after successful deploy"
+      default_branch:
+        required: false
+        type: string
+        default: "main"
+        description: "Default branch name (for deploy gate and git pull)"
     secrets:
       TS_OAUTH_CLIENT_ID:
         required: true
@@ -169,7 +174,7 @@ jobs:
 
   deploy:
     needs: test
-    if: always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    if: always() && github.ref == format('refs/heads/{0}', inputs.default_branch) && github.event_name == 'push' && (needs.test.result == 'success' || needs.test.result == 'skipped')
     runs-on: ubuntu-latest
 
     steps:
@@ -215,7 +220,7 @@ jobs:
 
       - name: Deploy to Franklin
         run: |
-          ssh -o ConnectTimeout=30 ${{ inputs.franklin_user }}@${{ inputs.franklin_host }} "cd ${{ inputs.deploy_path }} && git pull origin main"
+          ssh -o ConnectTimeout=30 ${{ inputs.franklin_user }}@${{ inputs.franklin_host }} "cd ${{ inputs.deploy_path }} && git pull origin ${{ inputs.default_branch }}"
 
       - name: Verify database exists on Franklin
         run: |
