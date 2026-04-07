@@ -60,6 +60,21 @@ on:
         type: number
         default: 15
         description: "Timeout in seconds for the health check curl"
+      skip_tests:
+        required: false
+        type: boolean
+        default: false
+        description: "Skip the test job (for services that can't run in CI)"
+      pre_build_command:
+        required: false
+        type: string
+        default: ""
+        description: "Command to run on Franklin before docker compose build"
+      post_deploy_command:
+        required: false
+        type: string
+        default: ""
+        description: "Command to run on Franklin after successful deploy"
     secrets:
       TS_OAUTH_CLIENT_ID:
         required: true
@@ -73,6 +88,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_tests }}
 
     services:
       postgres:
@@ -153,8 +169,8 @@ jobs:
 
   deploy:
     needs: test
+    if: always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && (needs.test.result == 'success' || needs.test.result == 'skipped')
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
       - uses: actions/checkout@v4
@@ -215,6 +231,11 @@ jobs:
             ssh ${{ inputs.franklin_user }}@${{ inputs.franklin_host }} "cd ${{ inputs.deploy_path }} && migrate -path migrations -database 'postgresql://postgres@127.0.0.1:5433/${{ inputs.db_name }}?sslmode=disable' up"
           fi
 
+      - name: Pre-build command
+        if: inputs.pre_build_command != ''
+        run: |
+          ssh ${{ inputs.franklin_user }}@${{ inputs.franklin_host }} "cd ${{ inputs.deploy_path }} && ${{ inputs.pre_build_command }}"
+
       - name: Rebuild containers
         run: |
           ssh ${{ inputs.franklin_user }}@${{ inputs.franklin_host }} "cd ${{ inputs.deploy_path }} && docker compose up -d --build"
@@ -225,6 +246,11 @@ jobs:
           curl -sf --max-time ${{ inputs.health_timeout }} ${{ inputs.health_url }} > /dev/null \
             && echo "Deploy OK — site is healthy" \
             || (echo "DEPLOY FAILED — site unreachable" && exit 1)
+
+      - name: Post-deploy command
+        if: inputs.post_deploy_command != ''
+        run: |
+          ssh ${{ inputs.franklin_user }}@${{ inputs.franklin_host }} "${{ inputs.post_deploy_command }}"
 
       - name: Tag deploy
         run: |
