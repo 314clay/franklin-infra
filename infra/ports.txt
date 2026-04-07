@@ -10,3 +10,4 @@ glive-bridge 30801
 output 3051
 cg-agents 7400 100.104.37.86
 cloudsync 3391
+franklin-dashboard 3400

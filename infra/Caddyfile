@@ -49,3 +49,8 @@ cloudsync.f {
 	tls internal
 	reverse_proxy localhost:3391
 }
+
+franklin-dashboard.f {
+	tls internal
+	reverse_proxy localhost:3400
+}
