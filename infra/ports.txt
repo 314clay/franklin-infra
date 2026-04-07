@@ -8,3 +8,5 @@ whisper-transcriber 3100
 whisper-gpu 30800 100.127.103.23
 glive-bridge 30801
 output 3051
+cg-agents 7400 100.104.37.86
+cloudsync 3391

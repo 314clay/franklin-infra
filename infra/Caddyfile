@@ -39,3 +39,13 @@ output.f {
 	tls internal
 	reverse_proxy localhost:3051
 }
+
+cg-agents.f {
+	tls internal
+	reverse_proxy 100.104.37.86:7400
+}
+
+cloudsync.f {
+	tls internal
+	reverse_proxy localhost:3391
+}
